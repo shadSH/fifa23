@@ -1,0 +1,4 @@
+  <div class="mb-3">
+                        <label class="form-label">%%itemName%%</label>
+                         <textarea name="%%itemName%%" id="%%itemName%%" cols="30" rows="10" class="form-control %%className%%"  %%required%%>%%valueUpdate%%</textarea>
+                    </div>

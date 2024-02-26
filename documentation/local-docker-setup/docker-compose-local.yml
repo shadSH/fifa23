@@ -1,0 +1,296 @@
+version: "3.9"
+
+networks:
+  laravel:
+
+services:
+  #   PHP Service
+  php:
+    build:
+      context: .
+      dockerfile: DockerfileLocal
+      target: php
+      args:
+        - APP_ENV=${APP_ENV}
+    container_name: fastlink_backend
+    environment:
+      - APP_ENV=${APP_ENV}
+      - CONTAINER_ROLE=app
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    ports:
+      - "8000:8000"
+
+    extra_hosts:
+      - "elastic-02-master.prod.wsc.dc:172.20.21.118"
+      - "elastic-01-master.prod.wsc.dc:172.20.21.118"
+    depends_on:
+      - database
+      - redis
+      - usage_database
+    networks:
+      - laravel
+
+  # Octane Server
+#  octane:
+#    container_name: octane
+#    build:
+#      context: .
+#      target: php
+#      args:
+#        - APP_ENV=${APP_ENV}
+#    environment:
+#      - APP_ENV=${APP_ENV}
+#      - CONTAINER_ROLE=octane
+#
+#    ports:
+#      - "8088:8088"
+#    working_dir: /var/www
+#    volumes:
+#      - ./:/var/www
+#    networks:
+#      - laravel
+
+  # Main Database Service
+  database:
+    image: postgres:15.0-alpine
+    container_name: fastlink_main_database
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54321:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: PostgreSQL
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  # PHPUnit Test Databases
+  phpunit-test-databases:
+    image: postgres:15.0-alpine
+    container_name: phpunit-test-databases
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54329:5432"
+    environment:
+      POSTGRES_DB: laravel
+      POSTGRES_USER: laravel
+      POSTGRES_PASSWORD: laravel
+      SERVICE_NAME: PostgreSQL
+      SERVICE_TAGS: dev
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+      - ./dockerfiles/phpunit-tests-container/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - laravel
+
+  # Usage Database Service
+  usage_database:
+    image: postgres:15.0-alpine
+    container_name: fastlink_usage_database
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54323:5432"
+    environment:
+      POSTGRES_DB: ${USAGE_DB_DATABASE}
+      POSTGRES_USER: ${USAGE_DB_USERNAME}
+      POSTGRES_PASSWORD: ${USAGE_DB_PASSWORD}
+      SERVICE_NAME: PostgreSQL
+      SERVICE_TAGS: dev
+    volumes:
+      - usage-db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  # local data ware-house database
+  local_dwh:
+    image: postgres:15.0-alpine
+    container_name: local_dwh
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54324:5432"
+    environment:
+      POSTGRES_DB: ${DWH_DB_DATABASE}
+      POSTGRES_USER: ${DWH_DB_USERNAME}
+      POSTGRES_PASSWORD: ${DWH_DB_PASSWORD}
+      SERVICE_NAME: PostgreSQL
+      SERVICE_TAGS: dev
+    volumes:
+      - dwh-db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  #Data warehouse
+#  data_warehouse:
+#    image: container-registry.oracle.com/database/instantclient:latest
+#    container_name: data_warehouse
+#    volumes:
+#      - oracle-data:/opt/oracle/oradata # persistent oracle database data.
+#    ports:
+#      - "11521:1521"
+#      - "18080:8080"
+#      - "15500:5500"
+#    environment:
+#      - ORACLE_SID=${DWH_DB_SERVICE_NAME}
+#      - ORACLE_PWD=${DWH_DB_PASSWORD}
+#      - ORACLE_PDB=ORCLPDB1
+
+  # Redis Server
+  redis:
+    image: redis:alpine
+    container_name: redis
+    #    environment:
+    #      - ALLOW_EMPTY_PASSWORD=yes
+    command: redis-server --appendonly yes --requirepass  "${REDIS_PASSWORD}"
+    #    volumes:
+    #      - cache:/opt/homebrew/opt/redis/data
+    #      - $PWD/redis-data:/opt/homebrew/opt/redis/data
+    #        - $PWD/redis.conf:./dockerfile/redis.conf
+    ports:
+      - "6380:6379"
+    networks:
+      - laravel
+
+  # Queue Server
+#  queue:
+#    container_name: queue
+#    build:
+#      context: .
+#      target: php
+#      args:
+#        - APP_ENV=${APP_ENV}
+#    environment:
+#      - APP_ENV=${APP_ENV}
+#      - CONTAINER_ROLE=queue
+#    working_dir: /var/www
+#    volumes:
+#      - ./:/var/www
+#    networks:
+#      - laravel
+
+  #Minio Server for storage
+  minio:
+    hostname: minio
+    image: quay.io/minio/minio
+    container_name: minio_storage
+    ports:
+      - "9005:9005"
+      - "9088:9088"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ACCESS_KEY: ${AWS_KEY}
+      MINIO_SECRET_KEY: ${AWS_SECRET}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      MINIO_ROOT_USER: wsc_minio_admin
+      MINIO_ROOT_PASSWORD: 123456789
+    command: minio server --address ":9005" /data --console-address ":9088"
+    networks:
+      - laravel
+
+  # Horizon
+  horizon:
+    container_name: horizon
+    build:
+      context: .
+      dockerfile: DockerfileLocal
+      target: php
+      args:
+        - APP_ENV=${APP_ENV}
+    environment:
+      - APP_ENV=${APP_ENV}
+      - CONTAINER_ROLE=horizon
+
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - laravel
+
+
+  sonarqube:
+    image: sonarqube:community
+    hostname: sonarqube
+    container_name: sonarqube
+    depends_on:
+      - db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube_db:5432/sonar
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: true
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    ports:
+      - "9000:9000"
+  sonarqube_db:
+    image: postgres:13
+    hostname: postgresql
+    container_name: postgresql
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonarqube_postgresql:/var/lib/postgresql
+      - sonarqube_postgresql_data:/var/lib/postgresql/data
+
+  # Other Services here ... depending on our own setup
+  elasticsearch:
+    container_name: elasticsearch
+    image: 'elasticsearch:8.8.0'
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    #      - cluster.name=docker-cluster
+    #      - bootstrap.memory_lock=true
+    #      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    volumes:
+      - 'elastic_volume:/usr/share/elasticsearch/data'
+    networks:
+      - laravel
+  #
+  kibana:
+    image: 'kibana:8.8.0'
+    environment:
+      - elasticsearch.hosts=http://elasticsearch:9200
+#      - ELASTICSEARCH_USERNAME=kibana_system
+#      - ELASTICSEARCH_PASSWORD=n5rNgVr5BhKryL9wiQ1t
+    ports:
+      - '5601:5601'
+    networks:
+      - laravel
+    depends_on:
+      - elasticsearch
+
+volumes:
+  db-data: ~
+#  oracle-data: ~
+  usage-db-data: ~
+  dwh-db-data: ~
+  minio_storage: ~
+  elastic_volume: ~
+  test-db-data: ~
+
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql:
+  postgresql_data:

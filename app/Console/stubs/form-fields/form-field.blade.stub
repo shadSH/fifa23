@@ -1,0 +1,4 @@
+  <div class="mb-3">
+                        <label class="form-label">%%itemName%%</label>
+                        <input type="%%fieldType%%" class="form-control" name="%%itemName%%" %%required%% placeholder="%%itemName%%" %%valueUpdate%%>
+                    </div>

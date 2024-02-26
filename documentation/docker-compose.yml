@@ -1,0 +1,158 @@
+version: "3.9"
+
+networks:
+  laravel:
+
+services:
+  # PHP Service
+  php:
+    build:
+      context: .
+      target: php
+      args:
+        - APP_ENV=${APP_ENV}
+
+    container_name: fastlink_backend
+    environment:
+      - APP_ENV=${APP_ENV}
+      - CONTAINER_ROLE=app
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+      - redis
+      - usage_database
+    networks:
+      - laravel
+
+  # Main Database Service
+  database:
+    image: postgres:15.0-alpine
+    container_name: fastlink_main_database
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54321:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: PostgreSQL
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  # Usage Database Service
+  usage_database:
+    image: postgres:15.0-alpine
+    container_name: fastlink_usage_database
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54323:5432"
+    environment:
+      POSTGRES_DB: ${USAGE_DB_DATABASE}
+      POSTGRES_USER: ${USAGE_DB_USERNAME}
+      POSTGRES_PASSWORD: ${USAGE_DB_PASSWORD}
+      SERVICE_NAME: PostgreSQL
+      SERVICE_TAGS: dev
+    volumes:
+      - usage-db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  #Data warehouse
+  data_warehouse:
+    image: container-registry.oracle.com/database/instantclient:latest
+    container_name: data_warehouse
+    volumes:
+      - oracle-data:/opt/oracle/oradata # persistent oracle database data.
+    ports:
+      - "11521:1521"
+      - "18080:8080"
+      - "15500:5500"
+    environment:
+      - ORACLE_SID=${DWH_DB_SERVICE_NAME}
+      - ORACLE_PWD=${DWH_DB_PASSWORD}
+      - ORACLE_PDB=ORCLPDB1
+
+  # Redis Server
+  redis:
+    image: redis:alpine
+    container_name: redis
+    #    environment:
+    #      - ALLOW_EMPTY_PASSWORD=yes
+    command: redis-server --appendonly yes --requirepass  "${REDIS_PASSWORD}"
+    #    volumes:
+    #      - cache:/opt/homebrew/opt/redis/data
+    #      - $PWD/redis-data:/opt/homebrew/opt/redis/data
+    #        - $PWD/redis.conf:./dockerfile/redis.conf
+    ports:
+      - "6380:6379"
+    networks:
+      - laravel
+
+  # Queue Server
+#  queue:
+#    container_name: queue
+#    build:
+#      context: .
+#      target: php
+#      args:
+#        - APP_ENV=${APP_ENV}
+#    environment:
+#      - APP_ENV=${APP_ENV}
+#      - CONTAINER_ROLE=queue
+#    working_dir: /var/www
+#    volumes:
+#      - ./:/var/www
+#    networks:
+#      - laravel
+
+  # Horizon Server
+  horizon:
+    container_name: horizon
+    build:
+      context: .
+      target: php
+      args:
+        - APP_ENV=${APP_ENV}
+    environment:
+      - APP_ENV=${APP_ENV}
+      - CONTAINER_ROLE=horizon
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - laravel
+
+  #Minio Server for storage
+  minio:
+    hostname: minio
+    image: quay.io/minio/minio
+    container_name: minio_storage
+    ports:
+      - "9005:9005"
+      - "9088:9088"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ACCESS_KEY: ${AWS_KEY}
+      MINIO_SECRET_KEY: ${AWS_SECRET}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      MINIO_ROOT_USER: wsc_minio_admin
+      MINIO_ROOT_PASSWORD: 123456789
+    command: minio server --address ":9005" /data --console-address ":9088"
+    networks:
+      - laravel
+
+volumes:
+  db-data: ~
+  oracle-data: ~
+  usage-db-data: ~
+  minio_storage: ~

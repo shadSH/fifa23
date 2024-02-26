@@ -1,0 +1,65 @@
+@extends('layouts.app')
+
+@push('styles')
+    <link rel="stylesheet" href="{{asset('assets/css/custom_uploader.css')}}">
+    <style>
+            .ck-editor__editable {min-height: 500px;}
+        </style>
+@endpush
+
+@section('title')
+    @lang('translate.%%viewName%%')
+@endsection
+
+@section('page_header')
+    <!-- Basic button -->
+    <div class="page-header page-header-light border rounded mb-3">
+        <div class="page-header-content d-flex">
+            <div class="page-title">
+                <h5 class="mb-0">@lang('translate.section_%%viewName%%')</h5>
+                <div class="text-muted mt-1">@lang('translate.info_%%viewName%%')</div>
+            </div>
+            <div class="my-auto ms-auto">
+                @can('create_%%viewName%%')
+                    <button type="button" class="btn btn-dark" id="create_form_vertical">@lang('translate.add_%%viewName%%')<i
+                            class="fa fa-plus ms-2"></i></button>
+                @endcan
+            </div>
+        </div>
+        <div class="page-header-content border-top">
+            <div class="breadcrumb">
+                <a href="/" class="breadcrumb-item py-2">@lang('translate.home')</a>
+                <span class="breadcrumb-item active py-2">@lang('translate.%%viewName%%')</span>
+            </div>
+        </div>
+    </div>
+    <!-- /basic button -->
+@endsection
+
+@section('content')
+       @include('%%viewName%%.create')
+        <div class="update_section"></div>
+
+    <!-- Content area -->
+    <div class="content">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">@lang('translate.%%viewName%%_table')</h5>
+            </div>
+            <div class="card-body">
+            </div>
+            <table class="table info_table" id="info_table">
+                <thead>
+                <tr>
+                   %%tableView%%
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- /content area -->
+@endsection
+@push('scripts')
+    @include('%%viewName%%.script')
+@endpush

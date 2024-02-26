@@ -1,0 +1,59 @@
+version: "3.9"
+
+networks:
+  laravel:
+
+services:
+  php:
+    build:
+      context: .
+      target: php
+      args:
+        - APP_ENV=${APP_ENV}
+    user: ${CURRENT_UID}
+    container_name: fastlink_backend
+    environment:
+      - APP_ENV=${APP_ENV}
+      - CONTAINER_ROLE=app
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+    networks:
+      - laravel
+
+  database:
+    image: postgres:15.0-alpine
+    container_name: fastlink_main_database
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54321:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: PostgreSQL
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - .github/scripts/init_main_schema.sql:/docker-entrypoint-initdb.d/init_main_schema.sql
+    networks:
+      - laravel
+
+#  redis:
+#    image: harbor.wsc.dc/proxy_cache/library/redis:alpine
+#    container_name: redis
+#    command: redis-server --appendonly yes --requirepass  "${REDIS_PASSWORD}"
+#    ports:
+#      - "6380:6379"
+#    networks:
+#      - laravel
+
+volumes:
+  db-data: ~
+  dwh-db-data: ~
+  usage-db-data: ~

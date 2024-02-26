@@ -1,0 +1,28 @@
+
+<!-- /vertical form modal -->
+<div id="modal_form_vertical" class="modal fade" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white border-0">
+                <h6 class="modal-title">Primary header</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <form  method="post" action="{{ route('%%viewName%%.store') }}" class="form-validate-jquery main_form" id="main_form">
+                    {{ csrf_field() }}
+
+                  %%createTemplate%%
+
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-dark submit_form">Submit form <i class="icon-paperplane ms-2 send_icon"></i></button>
+                    </div>
+                </form>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+<!-- /vertical form modal -->

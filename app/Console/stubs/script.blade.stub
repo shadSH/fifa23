@@ -1,0 +1,53 @@
+<script src="{{asset('assets/js/aiz-core.js?v=1')}}"></script>
+<script src="{{asset('global_assets/js/vendor/forms/selects/select2.min.js')}}"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/35.4.0/classic/ckeditor.js"></script>
+<script>
+
+    $(document).ready(function () {
+
+        %%ckeditorView%%
+
+        $("#info_table").DataTable({
+            processing: true,
+            "order": [[0, "desc"]],
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.11.5/i18n/{{ (App::getLocale() == 'ckb' ) ? 'ku' : App::getLocale() }}.json",
+                searchPlaceholder: "{{ __('translate.search_records') }}"
+            },
+            serverSide: true,
+            columnDefs: [{
+                targets: [3]
+            }],
+            ajax: {
+                url: "{{route('%%viewName%%.data')}}"
+            },
+            columns: [
+               %%scriptView%%
+            ]
+        });
+        $(document).on("click", "#edit", function () {
+            var id = $(this).data('id');
+            $.ajax({
+                url: "{{url('/%%viewName%%')}}/" + id + '/edit',
+                type: "GET",
+                dataType: "json",
+                  beforeSend: function ()
+                  {
+                     $('.edit_icon_'+id).removeClass('fa fa-edit');
+                     $('.edit_icon_'+id).addClass('ph-spinner spinner');
+                   },
+                   complete: function () {
+                  $('.edit_icon_'+id).removeClass('ph-spinner spinner');
+                   $('.edit_icon_'+id).addClass('fa fa-edit');
+                   },
+                success: function (data) {
+                    $('.update_section').html(data.html);
+                    $('#main_form_edit').attr('action', data.route);
+
+                    $("#modal_form_vertical_edit").modal("show");
+                }
+            });
+        })
+
+    })
+</script>
