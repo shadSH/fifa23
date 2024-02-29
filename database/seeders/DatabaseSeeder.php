@@ -17,6 +17,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
+        $this->call([
+            // Existing seeders...
+            TeamsSeeder::class, // Add your seeder class here
+        ]);
+
+
+
         $getRole = Role::where('name', 'Super Admin')->first();
         if (! $getRole) {
             $getRole = Role::create([
